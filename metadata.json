@@ -1,0 +1,7 @@
+{
+  "name": "AI Drive Image Finder",
+  "description": "An application that uses AI to find the most relevant image from a set of user-uploaded files based on a text description. This simulates searching a personal drive for a specific photo.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
