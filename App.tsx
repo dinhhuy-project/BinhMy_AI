@@ -171,11 +171,11 @@ function App() {
             </div>
           </div>
           <div className="md:col-span-1 flex flex-col gap-6">
+            <ImageUploader images={images} onImagesChange={setImages} onImageClick={handleImageClick} />
             <DriveImageLoader 
               onImagesLoaded={setImages}
               currentImageCount={images.length}
             />
-            <ImageUploader images={images} onImagesChange={setImages} onImageClick={handleImageClick} />
           </div>
         </main>
         
