@@ -11,11 +11,17 @@ const getApiBaseUrl = (): string => {
     return (window as any).__API_BASE_URL__;
   }
   
-  // Otherwise use hardcoded default
+  // For production: use relative URL to same domain
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return '/api';
+  }
+  
+  // For local development: use hardcoded default
   return 'http://localhost:3001/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
+console.log('API Base URL:', API_BASE_URL);
 
 /**
  * Lưu kết quả tìm kiếm ảnh lên backend MongoDB
