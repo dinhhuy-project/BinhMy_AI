@@ -143,24 +143,7 @@ function App() {
   return (
     <div className="min-h-screen bg-brand-bg font-sans p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <header className="text-center mb-8">
-          <div className="flex items-center justify-center gap-4">
-            <LogoIcon className="h-12 w-12" />
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-brand-primary-dark">
-              Trình Tìm Kiếm Ảnh Thông Minh
-            </h1>
-          </div>
-        </header>
-
         <main className="grid grid-cols-1 md:grid-cols-3 gap-8 min-h-[70vh]">
-          <div className="md:col-span-1 flex flex-col gap-6">
-            <DriveImageLoader 
-              onImagesLoaded={setImages}
-              currentImageCount={images.length}
-            />
-            <ImageUploader images={images} onImagesChange={setImages} onImageClick={handleImageClick} />
-          </div>
-          
           <div className="md:col-span-2 flex flex-col gap-6">
             <SearchBar
               query={query}
@@ -186,6 +169,13 @@ function App() {
                 onImageClick={handleOpenViewer}
               />
             </div>
+          </div>
+          <div className="md:col-span-1 flex flex-col gap-6">
+            <DriveImageLoader 
+              onImagesLoaded={setImages}
+              currentImageCount={images.length}
+            />
+            <ImageUploader images={images} onImagesChange={setImages} onImageClick={handleImageClick} />
           </div>
         </main>
         
