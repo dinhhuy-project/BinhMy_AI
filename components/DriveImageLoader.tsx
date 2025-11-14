@@ -8,6 +8,7 @@ import {
   signOut,
   getScheduleFolderImages,
   getImageAsBase64,
+  getSessionInfo,
   type DriveImage
 } from '../services/driveService';
 import Spinner from './Spinner';
@@ -26,6 +27,7 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState<string>('');
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
 
   useEffect(() => {
     initializeGoogleServices();
@@ -45,7 +47,17 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
       await initGoogleAPI();
       await initGoogleIdentityServices();
       setIsInitialized(true);
-      setIsAuthenticated(isSignedIn());
+      
+      // Check for existing session
+      const authenticated = isSignedIn();
+      setIsAuthenticated(authenticated);
+      
+      if (authenticated) {
+        const sessionInfo = await getSessionInfo();
+        setSessionExpiresAt(sessionInfo.expiresAt);
+        console.log('✓ Restored authentication from cache');
+      }
+      
       setLoadingProgress('');
     } catch (err) {
       console.error('Failed to initialize Google services:', err);
@@ -63,10 +75,16 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
       
       await getAccessToken();
       setIsAuthenticated(true);
-      setLoadingProgress('Đăng nhập thành công!');
+      
+      const sessionInfo = await getSessionInfo();
+      setSessionExpiresAt(sessionInfo.expiresAt);
+      
+      setLoadingProgress('Đăng nhập thành công! ✓');
       
       // Automatically load images after sign in
-      await loadImagesFromDrive();
+      setTimeout(async () => {
+        await loadImagesFromDrive();
+      }, 800);
     } catch (err) {
       console.error('Sign in failed:', err);
       setError('Đăng nhập thất bại. Vui lòng thử lại.');
@@ -106,6 +124,7 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
   const handleSignOut = () => {
     signOut();
     setIsAuthenticated(false);
+    setSessionExpiresAt(null);
     onImagesLoaded([]);
   };
 
@@ -220,17 +239,29 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
         </div>
       ) : (
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-brand-muted">Đã đăng nhập</span>
+          <div className="mb-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-semibold text-green-700">Đã đăng nhập</span>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="text-xs text-red-600 hover:text-red-800 font-semibold px-2 py-1 rounded hover:bg-red-50"
+              >
+                Đăng xuất
+              </button>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="text-sm text-brand-secondary hover:text-brand-secondary/80 font-semibold"
-            >
-              Đăng xuất
-            </button>
+            
+            {sessionExpiresAt && (
+              <div className="text-xs text-brand-muted bg-blue-50 px-2 py-1 rounded">
+                🔐 Đăng nhập sẽ hết hạn: {new Date(sessionExpiresAt).toLocaleTimeString('vi-VN')}
+              </div>
+            )}
+            
+            <p className="text-xs text-brand-muted">
+              💾 Thông tin đăng nhập đã được lưu vĩnh viễn
+            </p>
           </div>
 
           <div className="text-center">

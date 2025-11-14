@@ -138,6 +138,25 @@ class CacheService {
       };
     });
   }
+
+  async clearAuthData(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const transaction = this.db.transaction(AUTH_STORE, 'readwrite');
+    const store = transaction.objectStore(AUTH_STORE);
+
+    return new Promise((resolve, reject) => {
+      const request = store.delete('google-drive');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
+  async isAuthDataValid(): Promise<boolean> {
+    const authData = await this.getAuthData();
+    if (!authData || !authData.token) return false;
+    return authData.expiresAt > Date.now();
+  }
 }
 
 export const cacheService = new CacheService();

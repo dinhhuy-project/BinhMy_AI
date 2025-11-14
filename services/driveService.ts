@@ -27,6 +27,22 @@ const getCredentials = async () => {
 let gapiInited = false;
 let gisInited = false;
 let tokenClient: any;
+let tokenRefreshTimer: NodeJS.Timeout | null = null;
+
+// Setup token refresh timer
+const setupTokenRefreshTimer = () => {
+  // Refresh token 5 minutes before expiry
+  if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+  
+  tokenRefreshTimer = setTimeout(async () => {
+    try {
+      console.log('Token expiring soon, requesting new token...');
+      await getAccessToken();
+    } catch (error) {
+      console.error('Failed to refresh token:', error);
+    }
+  }, 55 * 60 * 1000); // 55 minutes (out of 60 minute default expiry)
+};
 
 export const initGoogleAPI = async (): Promise<void> => {
   // Initialize cache service
@@ -41,12 +57,21 @@ export const initGoogleAPI = async (): Promise<void> => {
     gapiScript.onload = async () => {
       await loadGapi();
       
-      // Try to restore auth session
-      const authData = await cacheService.getAuthData();
-      if (authData && authData.expiresAt > Date.now()) {
-        // Set the access token
-        (window as any).gapi.client.setToken({ access_token: authData.token });
-        gapiInited = true;
+      // Try to restore auth session from cache
+      try {
+        const isValid = await cacheService.isAuthDataValid();
+        if (isValid) {
+          const authData = await cacheService.getAuthData();
+          if (authData && authData.token) {
+            // Set the access token
+            (window as any).gapi.client.setToken({ access_token: authData.token });
+            console.log('✓ Restored authentication from cache (offline login)');
+            gapiInited = true;
+            setupTokenRefreshTimer();
+          }
+        }
+      } catch (error) {
+        console.warn('Could not restore auth session:', error);
       }
       
       resolve();
@@ -101,8 +126,14 @@ export const getAccessToken = (): Promise<string> => {
         if (response.error !== undefined) {
           reject(response);
         } else {
-          // Save auth data to cache
-          await cacheService.saveAuthData(response.access_token, response.expires_in);
+          // Save auth data to cache - this enables persistent login
+          const expiresIn = response.expires_in || 3600; // Default to 1 hour
+          await cacheService.saveAuthData(response.access_token, expiresIn);
+          console.log('✓ Authentication saved (will persist for future sessions)');
+          
+          // Setup refresh timer for automatic token renewal
+          setupTokenRefreshTimer();
+          
           resolve(response.access_token);
         }
       };
@@ -123,14 +154,32 @@ export const isSignedIn = (): boolean => {
   return (window as any).gapi?.client?.getToken() !== null;
 };
 
+// Get current session info
+export const getSessionInfo = async (): Promise<{ isSignedIn: boolean; expiresAt: number | null }> => {
+  const isSignedIn = (window as any).gapi?.client?.getToken() !== null;
+  const authData = await cacheService.getAuthData();
+  
+  return {
+    isSignedIn,
+    expiresAt: authData?.expiresAt || null
+  };
+};
+
 // Sign out
 export const signOut = async (): Promise<void> => {
+  if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+  
   const token = (window as any).gapi.client.getToken();
   if (token !== null) {
-    await (window as any).google.accounts.oauth2.revoke(token.access_token);
+    try {
+      await (window as any).google.accounts.oauth2.revoke(token.access_token);
+    } catch (error) {
+      console.warn('Could not revoke token:', error);
+    }
     (window as any).gapi.client.setToken('');
     // Clear auth data from cache
-    await cacheService.saveAuthData('', 0);
+    await cacheService.clearAuthData();
+    console.log('✓ Signed out and cleared saved authentication');
   }
 };
 
