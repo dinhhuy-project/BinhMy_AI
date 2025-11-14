@@ -1,0 +1,235 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║                ✅ API FIX COMPLETE - READY TO TEST                         ║
+║                                                                            ║
+║              API giờ đã được cấu hình để chạy trên port 3001              ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 🔧 VẤN ĐỀ ĐÃ SỬA                                                           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+❌ TRƯỚC: Port 5000 (sai)
+✅ SAU: Port 3001 (đúng)
+
+❌ TRƯỚC: process.env không hoạt động trong browser
+✅ SAU: window.__API_BASE_URL__ được inject từ Vite
+
+❌ TRƯỚC: Vite không load VITE_API_URL
+✅ SAU: Đã thêm define trong vite.config.ts
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 📝 FILES ĐÃ CẬP NHẬT                                                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+✅ services/apiService.ts
+   • Thêm: getApiBaseUrl() function
+   • Sửa: API_BASE_URL configuration
+   • Fix: Environment variable handling
+
+✅ vite.config.ts
+   • Thêm: window.__API_BASE_URL__ define
+   • Kết nối: .env variables vào frontend
+
+✅ api-test.js (NEW)
+   • Complete API test suite
+   • Kiểm tra tất cả endpoints
+   • Tạo test data & validate responses
+
+✅ test-api.bat (NEW)
+   • Windows batch script
+   • Dễ chạy test từ explorer
+
+✅ API_FIX_GUIDE.md (NEW)
+   • Tài liệu chi tiết
+   • Troubleshooting guide
+   • API endpoint reference
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 🚀 CÁCH CHẠY                                                               │
+└────────────────────────────────────────────────────────────────────────────┘
+
+CÁCH 1: Command (Nhanh nhất)
+  $ npm run dev:all
+  (Chạy backend + frontend cùng lúc)
+
+CÁCH 2: Batch Script (Easy)
+  $ ./test-api.bat
+  (Double-click file)
+
+CÁCH 3: Riêng Lẻ
+  Terminal 1: npm run dev:server
+  Terminal 2: npm run dev
+  Terminal 3: node api-test.js
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ ✅ KIỂM TRA HEALTH                                                         │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Mở Terminal & chạy:
+
+  1. Server Health:
+     curl http://localhost:3001/api/health
+
+  2. Frontend Health:
+     curl http://localhost:3000
+
+  3. Full Test Suite:
+     node api-test.js
+
+RESPONSE MONG ĐỢI:
+  {
+    "status": "OK",
+    "message": "Server is running"
+  }
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 🧪 TEST DARI BROWSER                                                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+1. Mở http://localhost:3000
+2. Mở Console (F12)
+3. Paste code này:
+
+fetch('http://localhost:3001/api/health')
+  .then(r => r.json())
+  .then(d => console.log('✅ API Works!', d))
+  .catch(e => console.error('❌ API Error:', e))
+
+MONG ĐỢI: ✅ API Works! { status: "OK", message: "Server is running" }
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 📊 CONFIGURATION SUMMARY                                                   │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Frontend:         http://localhost:3000 (Vite React)
+Backend API:      http://localhost:3001/api (Express)
+MongoDB:          mongodb+srv://... (Cloud Atlas)
+
+Environment:
+  VITE_API_URL=http://localhost:3001/api
+  PORT=3001
+  MONGODB_URI=<your_connection_string>
+  GEMINI_API_KEY=<your_gemini_key>
+
+API Base URL:     http://localhost:3001/api
+  ✓ Health:       /health
+  ✓ Save Image:   POST /images
+  ✓ Get All:      GET /images
+  ✓ Search:       GET /images/search?q=
+  ✓ Get by ID:    GET /images/:id
+  ✓ Get by Source: GET /images/source/:source
+  ✓ Update:       PUT /images/:id
+  ✓ Delete:       DELETE /images/:id
+  ✓ Statistics:   GET /statistics
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 🔍 VERIFICATION CHECKLIST                                                  │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Run through this to ensure everything works:
+
+□ npm run dev:all menghasilkan:
+  ✓ MongoDB connected successfully
+  ✓ Server is running on http://localhost:3001
+  ✓ Vite ready on http://localhost:3000
+
+□ http://localhost:3001/api/health → { status: "OK", ... }
+
+□ http://localhost:3000 → React app loads
+
+□ Browser Console (F12):
+  fetch('http://localhost:3001/api/health')
+  → ✅ Returns data (no CORS error)
+
+□ node api-test.js → All tests PASS
+
+□ Upload image or search → Data saved to MongoDB
+
+□ Check stats: http://localhost:3001/api/statistics
+  → Returns data with counts
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 🐛 TROUBLESHOOTING                                                         │
+└────────────────────────────────────────────────────────────────────────────┘
+
+PROBLEM: "Cannot GET /api/health"
+SOLUTION:
+  • Kiểm tra server có chạy: npm run dev:server
+  • Kiểm tra port: netstat -ano | findstr :3001
+  • Restart server
+
+PROBLEM: "CORS Error" hoặc "fetch failed"
+SOLUTION:
+  • Kiểm tra VITE_API_URL trong .env
+  • Kiểm tra vite.config.ts có define window.__API_BASE_URL__
+  • Rebuild frontend: npm run build
+
+PROBLEM: "Failed to connect to MongoDB"
+SOLUTION:
+  • Kiểm tra MONGODB_URI trong .env
+  • Kiểm tra network connection
+  • Test connection: mongosh "<connection_string>"
+
+PROBLEM: "Images not saving"
+SOLUTION:
+  • Kiểm tra MongoDB status
+  • Kiểm tra API response (F12 Console)
+  • Run api-test.js để debug
+
+PROBLEM: "Port already in use"
+SOLUTION:
+  • Terminate existing process: taskkill /PID <pid> /F
+  • Hoặc thay đổi PORT trong .env
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 📚 USEFUL COMMANDS                                                         │
+└────────────────────────────────────────────────────────────────────────────┘
+
+# Start everything
+npm run dev:all
+
+# Test API
+node api-test.js
+
+# Check if server is running
+curl http://localhost:3001/api/health
+
+# Save image test
+curl -X POST http://localhost:3001/api/images \
+  -H "Content-Type: application/json" \
+  -d '{"searchQuery":"test","imageId":"1","imageName":"test.jpg","mimeType":"image/jpeg","matchScore":90,"matchReason":"test","source":"upload"}'
+
+# Get all images
+curl http://localhost:3001/api/images
+
+# Get statistics
+curl http://localhost:3001/api/statistics
+
+# Check ports
+netstat -ano | findstr :3000
+netstat -ano | findstr :3001
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 🎯 NEXT STEPS                                                              │
+└────────────────────────────────────────────────────────────────────────────┘
+
+1. ✅ npm run dev:all
+2. ✅ Mở http://localhost:3000
+3. ✅ Kiểm tra Console (F12) - không có error
+4. ✅ Upload image hoặc tìm kiếm
+5. ✅ Xem MongoDB data được lưu
+6. ✅ Check http://localhost:3001/api/statistics
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Status: ✅ API FIXED & READY
+Updated: November 14, 2025
+Version: 1.0
+Backend: Express on port 3001
+Database: MongoDB Atlas
+
+Happy coding! 🚀
+
+═══════════════════════════════════════════════════════════════════════════════

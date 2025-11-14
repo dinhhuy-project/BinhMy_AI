@@ -113,12 +113,12 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
     try {
       setIsLoading(true);
       setError(null);
-      setLoadingProgress('Đang tìm thư mục "Schedule"...');
+      setLoadingProgress('Đang tìm thư mục "BANG LED BEP"...');
 
       const driveImages = await getScheduleFolderImages();
       
       if (driveImages.length === 0) {
-        setError('Không tìm thấy ảnh nào trong thư mục "Schedule"');
+        setError('Không tìm thấy ảnh nào trong thư mục "BANG LED BEP"');
         setIsLoading(false);
         return;
       }

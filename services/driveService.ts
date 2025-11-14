@@ -240,22 +240,55 @@ export const getImageAsBase64 = async (fileId: string, mimeType: string): Promis
   }
 };
 
-// Main function to get all images from Schedule folder
+// Find first subfolder in a parent folder
+export const findFirstSubfolder = async (parentFolderId: string): Promise<string | null> => {
+  try {
+    const response = await (window as any).gapi.client.drive.files.list({
+      q: `'${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id, name)',
+      spaces: 'drive',
+      pageSize: 1,
+    });
+
+    const folders = response.result.files;
+    if (folders && folders.length > 0) {
+      console.log(`Found first subfolder: ${folders[0].name}`);
+      return folders[0].id;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error finding first subfolder:', error);
+    throw error;
+  }
+};
+
+// Main function to get all images from BANG LED BEP folder
 export const getScheduleFolderImages = async (): Promise<DriveImage[]> => {
   try {
-    // Find the Schedule folder
-    const folderId = await findFolderByName('Schedule');
+    // Find the BANG LED BEP folder
+    const bangLedBepFolderId = await findFolderByName('BANG LED BEP');
     
-    if (!folderId) {
-      throw new Error('Không tìm thấy thư mục "Schedule" trong Google Drive của bạn');
+    if (!bangLedBepFolderId) {
+      throw new Error('Không tìm thấy thư mục "BANG LED BEP" trong Google Drive của bạn');
     }
 
-    // Get all images from the folder
-    const images = await getImagesFromFolder(folderId);
+    console.log(`Found BANG LED BEP folder: ${bangLedBepFolderId}`);
+
+    // Find first subfolder inside BANG LED BEP
+    const firstSubfolderId = await findFirstSubfolder(bangLedBepFolderId);
+    
+    if (!firstSubfolderId) {
+      throw new Error('Không tìm thấy thư mục con nào trong "BANG LED BEP"');
+    }
+
+    console.log(`Using first subfolder: ${firstSubfolderId}`);
+
+    // Get all images from the subfolder
+    const images = await getImagesFromFolder(firstSubfolderId);
     
     return images;
   } catch (error) {
-    console.error('Error getting Schedule folder images:', error);
+    console.error('Error getting BANG LED BEP folder images:', error);
     throw error;
   }
 };

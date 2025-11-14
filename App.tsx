@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import type { ImageFile, MatchResult } from './types';
+import type { ImageFile, MatchResult, MongoImage } from './types';
 import { rateBatchImageMatch } from './services/geminiService';
+import { saveImageToMongoDB, checkBackendHealth } from './services/apiService';
 import { ImageUploader } from './components/ImageUploader';
 import { DriveImageLoader } from './components/DriveImageLoader';
 import { SearchBar } from './components/SearchBar';
@@ -17,12 +18,27 @@ function App() {
   const [bestMatch, setBestMatch] = useState<MatchResult | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState<boolean>(false);
   const [selectedImage, setSelectedImage] = useState<ImageFile | null>(null);
+  const [backendAvailable, setBackendAvailable] = useState<boolean>(false);
   
   // Ref to ensure handleSearch gets the latest query, especially when called from a callback
   const queryRef = React.useRef(query);
   useEffect(() => {
     queryRef.current = query;
   }, [query]);
+
+  // Kiểm tra backend có sẵn sàng khi component mount
+  useEffect(() => {
+    const checkBackend = async () => {
+      const isAvailable = await checkBackendHealth();
+      setBackendAvailable(isAvailable);
+      if (isAvailable) {
+        console.log('✓ Backend API is available');
+      } else {
+        console.warn('⚠ Backend API is not available - search results will not be saved');
+      }
+    };
+    checkBackend();
+  }, []);
 
   const handleSearch = useCallback(async (searchQuery?: string) => {
     const currentQuery = typeof searchQuery === 'string' ? searchQuery : queryRef.current;
@@ -51,6 +67,28 @@ function App() {
       setBestMatch(topMatch);
       setIsViewerOpen(true);
 
+      // Lưu kết quả lên backend nếu có sẵn
+      if (backendAvailable && topMatch) {
+        try {
+          const mongoImageData: Omit<MongoImage, '_id' | 'createdAt' | 'updatedAt'> = {
+            searchQuery: currentQuery,
+            imageId: topMatch.image.id,
+            imageName: topMatch.image.file.name,
+            imageBase64: topMatch.image.base64,
+            mimeType: topMatch.image.file.type,
+            matchScore: topMatch.score,
+            matchReason: topMatch.reason,
+            source: 'upload', // Mặc định là upload, có thể thay đổi nếu từ Google Drive
+          };
+
+          await saveImageToMongoDB(mongoImageData);
+          console.log('✓ Image saved to MongoDB');
+        } catch (backendError) {
+          console.error('Error saving to MongoDB:', backendError);
+          // Không ảnh hưởng đến trải nghiệm người dùng
+        }
+      }
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Đã xảy ra lỗi không mong muốn.";
       console.error("Search failed:", errorMessage);
@@ -58,7 +96,7 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [images]);
+  }, [images, backendAvailable]);
 
   const {
     isListening,
@@ -155,12 +193,7 @@ function App() {
           <p>Phát triển bởi Bộ phận Đào tạo - Viện Công nghệ Blockchain và Trí tuệ nhân tạo ABAII</p>
         </footer>
       </div>
-      {isViewerOpen && (bestMatch || selectedImage) && (
-        <FullscreenViewer
-          image={selectedImage || bestMatch?.image}
-          onClose={handleCloseViewer}
-        />
-      )}
+      
     </div>
   );
 }
