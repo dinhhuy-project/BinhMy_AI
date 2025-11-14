@@ -1,11 +1,35 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { ImageFile } from '../types';
 
-if (!process.env.GEMINI_API_KEY) {
-    throw new Error("API_KEY environment variable is not set");
-}
+// Get API key from environment - try multiple sources
+const getApiKey = (): string => {
+  // Try VITE_GEMINI_API_KEY (frontend env var via import.meta)
+  try {
+    const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    if (envKey) return envKey;
+  } catch (e) {
+    // Ignore if import.meta not available
+  }
+  
+  // Try window object (if injected)
+  if (typeof window !== 'undefined' && (window as any).__GEMINI_API_KEY__) {
+    return (window as any).__GEMINI_API_KEY__;
+  }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Fallback to process.env for server-side
+  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
+  }
+  
+  if (typeof process !== 'undefined' && process.env?.API_KEY) {
+    return process.env.API_KEY;
+  }
+
+  throw new Error("VITE_GEMINI_API_KEY environment variable is not set. Please set it in your .env file or Railway environment variables.");
+};
+
+const apiKey = getApiKey();
+const ai = new GoogleGenAI({ apiKey });
 
 const model = 'gemini-2.5-flash';
 
