@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { ImageFile } from '../types';
 
-if (!process.env.API_KEY) {
+if (!process.env.GEMINI_API_KEY) {
     throw new Error("API_KEY environment variable is not set");
 }
 
