@@ -18,6 +18,7 @@ function App() {
   const [bestMatch, setBestMatch] = useState<MatchResult | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState<boolean>(false);
   const [selectedImage, setSelectedImage] = useState<ImageFile | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(-1);
   const [backendAvailable, setBackendAvailable] = useState<boolean>(false);
   
   // Ref to ensure handleSearch gets the latest query, especially when called from a callback
@@ -133,12 +134,29 @@ function App() {
   const handleCloseViewer = useCallback(() => {
     setIsViewerOpen(false);
     setSelectedImage(null);
+    setSelectedImageIndex(-1);
   }, []);
+
+  const handleSwipeImage = useCallback((direction: 'left' | 'right') => {
+    if (selectedImageIndex < 0 || images.length === 0) return;
+    
+    let newIndex = selectedImageIndex;
+    if (direction === 'right') {
+      newIndex = (selectedImageIndex - 1 + images.length) % images.length;
+    } else {
+      newIndex = (selectedImageIndex + 1) % images.length;
+    }
+    
+    setSelectedImage(images[newIndex]);
+    setSelectedImageIndex(newIndex);
+  }, [selectedImageIndex, images]);
 
   const handleImageClick = useCallback((image: ImageFile) => {
     setSelectedImage(image);
+    const index = images.findIndex(img => img.id === image.id);
+    setSelectedImageIndex(index >= 0 ? index : -1);
     setIsViewerOpen(true);
-  }, []);
+  }, [images]);
 
   return (
     <div className="min-h-screen bg-brand-bg font-sans p-2 sm:p-4 lg:p-8">
@@ -187,6 +205,9 @@ function App() {
         <FullscreenViewer
           image={selectedImage || bestMatch?.image}
           onClose={handleCloseViewer}
+          onSwipeImage={handleSwipeImage}
+          currentIndex={selectedImageIndex}
+          totalImages={images.length}
         />
       )}
     </div>
