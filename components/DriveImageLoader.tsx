@@ -206,34 +206,34 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-border">
+    <div className="bg-white p-4 lg:p-6 rounded-lg shadow-sm border border-brand-border">
       <h2 className="text-xl font-bold mb-4 text-brand-primary-dark">
-        Google Drive
+        🗂️ Google Drive
       </h2>
 
       {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
+        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
           {error}
         </div>
       )}
 
       {!isAuthenticated ? (
         <div className="text-center">
-          <p className="text-brand-muted mb-4">
-            Đăng nhập vào Google Drive để tự động tải ảnh
+          <p className="text-brand-muted mb-4 text-sm lg:text-base">
+            Đăng nhập Google Drive để tải ảnh
           </p>
           <button
             onClick={handleSignIn}
             disabled={isLoading}
-            className="bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-brand-primary text-white font-bold py-4 px-6 rounded-lg active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-base lg:text-lg"
           >
                 {isLoading ? (
-                  <span className="flex items-center justify-center">
+                  <span className="flex items-center justify-center gap-2">
                     <Spinner size={18} thickness={3} />
-                    <span className="ml-2">Đang xử lý...</span>
+                    <span>Đang xử lý...</span>
                   </span>
                 ) : (
-                  'Đăng nhập Google Drive'
+                  '🔐 Đăng nhập Google'
                 )}
           </button>
         </div>
@@ -243,11 +243,11 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm font-semibold text-green-700">Đã đăng nhập</span>
+                <span className="text-sm font-semibold text-green-700">✓ Đã đăng nhập</span>
               </div>
               <button
                 onClick={handleSignOut}
-                className="text-xs text-red-600 hover:text-red-800 font-semibold px-2 py-1 rounded hover:bg-red-50"
+                className="text-sm text-red-600 font-semibold px-3 py-1 rounded active:opacity-70 transition-all bg-red-100"
               >
                 Đăng xuất
               </button>
@@ -255,12 +255,12 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
             
             {sessionExpiresAt && (
               <div className="text-xs text-brand-muted bg-blue-50 px-2 py-1 rounded">
-                🔐 Đăng nhập sẽ hết hạn: {new Date(sessionExpiresAt).toLocaleTimeString('vi-VN')}
+                🔐 Hết hạn: {new Date(sessionExpiresAt).toLocaleTimeString('vi-VN')}
               </div>
             )}
             
             <p className="text-xs text-brand-muted">
-              💾 Thông tin đăng nhập đã được lưu vĩnh viễn
+              💾 Đã lưu
             </p>
           </div>
 
@@ -268,21 +268,21 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
             <button
               onClick={loadImagesFromDrive}
               disabled={isLoading}
-              className="w-full bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-brand-primary text-white font-bold py-4 px-6 rounded-lg active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-base lg:text-lg"
             >
               {isLoading ? (
-                <span className="flex items-center justify-center">
+                <span className="flex items-center justify-center gap-2">
                   <Spinner size={20} thickness={4} />
-                  <span className="ml-2">Đang tải...</span>
+                  <span>Đang tải...</span>
                 </span>
               ) : (
-                `Tải ảnh từ thư mục ...`
+                `📁 Tải ảnh từ Drive`
               )}
             </button>
 
             {currentImageCount > 0 && (
               <p className="mt-3 text-sm text-brand-muted">
-                Đã tải: {currentImageCount} ảnh
+                ✓ Đã có: {currentImageCount} ảnh
               </p>
             )}
 

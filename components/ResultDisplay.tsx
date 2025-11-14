@@ -66,17 +66,17 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading,
 
   if (result) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-white rounded-lg p-6 animate-slide-in shadow-sm border border-brand-border" aria-live="polite">
-        <h3 className="text-2xl font-bold text-brand-primary-dark mb-4">Đã tìm thấy ảnh phù hợp nhất!</h3>
-        <div className="flex flex-col lg:flex-row items-center gap-6 w-full">
-            <button onClick={onImageClick} className="flex-shrink-0 focus:outline-none focus:ring-4 focus:ring-brand-primary rounded-lg" aria-label="Xem ảnh toàn màn hình">
-                <img src={result.image.base64} alt="Best match" className="rounded-lg shadow-lg max-w-xs md:max-w-sm max-h-80 object-contain hover:opacity-80 transition-opacity" />
+      <div className="w-full h-full flex flex-col items-center justify-center bg-white rounded-lg p-4 lg:p-6 animate-slide-in shadow-sm border border-brand-border" aria-live="polite">
+        <h3 className="text-2xl font-bold text-brand-primary-dark mb-4 text-center">✓ Tìm thấy ảnh phù hợp!</h3>
+        <div className="flex flex-col lg:flex-row items-center gap-4 lg:gap-6 w-full">
+            <button onClick={onImageClick} className="flex-shrink-0 focus:outline-none focus:ring-4 focus:ring-brand-primary rounded-lg active:opacity-80 transition-opacity" aria-label="Xem ảnh toàn màn hình">
+                <img src={result.image.base64} alt="Best match" className="rounded-lg shadow-lg max-w-xs md:max-w-sm max-h-80 object-contain border-4 border-brand-primary" />
             </button>
             <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
                 <ScoreRing score={result.score} />
                 <p className="mt-4 text-lg font-semibold text-brand-muted">Điểm phù hợp</p>
-                <p className="mt-2 text-brand-text italic">"{result.reason}"</p>
-                <p className="text-xs mt-4 text-brand-muted tracking-wide">Tên tệp: {result.image.file.name}</p>
+                <p className="mt-2 text-brand-text italic text-sm lg:text-base">"{result.reason}"</p>
+                <p className="text-xs mt-4 text-brand-muted tracking-wide">📄 {result.image.file.name}</p>
             </div>
         </div>
       </div>

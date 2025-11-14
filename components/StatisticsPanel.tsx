@@ -83,7 +83,7 @@ export const StatisticsPanel: React.FC = () => {
             {statistics.topQueries.map((item, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition"
+                className="flex items-center justify-between bg-gray-50 rounded-lg p-4 border-2 border-gray-200 transition"
               >
                 <div className="flex items-center gap-4 flex-1">
                   <span className="font-bold text-lg text-gray-400 w-6 text-right">
@@ -105,7 +105,7 @@ export const StatisticsPanel: React.FC = () => {
       <div className="mt-8 pt-6 border-t border-gray-200">
         <button
           onClick={() => window.location.reload()}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition duration-200"
+          className="w-full bg-blue-500 text-white font-bold py-4 rounded-lg active:opacity-80 transition duration-200 text-base lg:text-lg"
         >
           🔄 Làm mới
         </button>

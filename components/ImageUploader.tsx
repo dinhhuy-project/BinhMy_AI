@@ -88,15 +88,15 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ images, onImagesCh
 
       <div className="mt-4 flex-grow overflow-y-auto max-h-[300px]">
         {images.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3">
             {images.map(image => (
               <div key={image.id} className="relative group animate-fade-in">
-                <img src={image.base64} alt={image.file.name} className="w-full h-24 object-cover rounded-md" />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-300 flex items-center justify-center">
-                  <button onClick={() => onImageClick?.(image)} className="absolute top-50% right-50% text-white rounded-full p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-gray-800/50">
-                    <MaximizeIcon className="w-5 h-5" />
+                <img src={image.base64} alt={image.file.name} className="w-full h-24 object-cover rounded-md border-2 border-brand-border" />
+                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-between gap-1 p-1 rounded-md">
+                  <button onClick={() => onImageClick?.(image)} className="flex-1 bg-brand-primary text-white rounded-md p-2 flex items-center justify-center active:bg-brand-primary-dark transition-all">
+                    <MaximizeIcon className="w-4 h-4" />
                   </button>
-                  <button onClick={() => removeImage(image.id)} className="absolute top-1 right-1 bg-brand-secondary/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-brand-secondary">
+                  <button onClick={() => removeImage(image.id)} className="bg-brand-secondary text-white rounded-md p-2 flex items-center justify-center active:opacity-80 transition-all">
                     <CloseIcon className="w-4 h-4" />
                   </button>
                 </div>

@@ -49,11 +49,11 @@ export const FullscreenViewer: React.FC<FullscreenViewerProps> = ({ image, onClo
         />
       </div>
 
-      {/* Close button hover area */}
-      <div className="absolute top-0 right-0 h-24 w-24 flex items-start justify-end p-4 group">
+      {/* Close button - always visible */}
+      <div className="absolute top-4 right-4 flex items-start justify-end">
         <button
           onClick={onClose}
-          className="bg-white/10 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-300 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          className="bg-brand-secondary text-white rounded-full p-3 active:opacity-80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-primary"
           aria-label="Đóng trình xem ảnh"
         >
           <CloseIcon className="w-8 h-8" />
