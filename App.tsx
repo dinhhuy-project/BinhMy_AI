@@ -65,7 +65,7 @@ function App() {
       );
 
       setBestMatch(topMatch);
-      setIsViewerOpen(true);
+      setIsViewerOpen(false);
 
       // Lưu kết quả lên backend nếu có sẵn
       if (backendAvailable && topMatch) {
@@ -193,7 +193,12 @@ function App() {
           <p>Phát triển bởi Bộ phận Đào tạo - Viện Công nghệ Blockchain và Trí tuệ nhân tạo ABAII</p>
         </footer>
       </div>
-      
+      {isViewerOpen && (bestMatch || selectedImage) && (
+        <FullscreenViewer
+          image={selectedImage || bestMatch?.image}
+          onClose={handleCloseViewer}
+        />
+      )}
     </div>
   );
 }
