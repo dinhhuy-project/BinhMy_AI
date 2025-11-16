@@ -30,8 +30,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   return (
     <div className="flex flex-col gap-3 w-full">
-      <div className="flex items-center gap-3 w-full">
-        <div className="relative flex-grow">
+      <div className="flex flex-col md:flex-row items-center gap-3 w-full">
+        <div className="relative flex-grow w-full md:w-auto">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <SearchIcon className="h-6 w-6 text-brand-muted" />
           </div>
@@ -41,14 +41,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             onChange={(e) => onQueryChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isRecording ? "Đang nghe..." : "Tìm kiếm..."}
-            className="w-full bg-white border-2 border-brand-border rounded-lg py-4 pl-14 pr-4 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all h-[60px] text-lg"
+            className="w-full bg-white border-2 border-brand-border rounded-lg py-4 pl-14 pr-4 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all h-[60px] md:h-[60px] h-[calc(100vh/3)] text-lg"
             disabled={isLoading || isRecording}
           />
         </div>
         <button
           onClick={onSubmit}
           disabled={isSubmitDisabled || isLoading || isRecording}
-          className="px-6 h-[60px] bg-brand-primary text-white font-bold rounded-lg active:bg-brand-primary-dark disabled:bg-brand-muted disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center text-base min-w-[100px]"
+          className="px-6 h-[60px] bg-brand-primary text-white font-bold rounded-lg active:bg-brand-primary-dark disabled:bg-brand-muted disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center text-base min-w-[100px] w-full md:w-auto"
         >
           {isLoading ? (
             <>
