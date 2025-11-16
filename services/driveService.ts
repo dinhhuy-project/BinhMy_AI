@@ -311,6 +311,24 @@ export const findFirstSubfolder = async (parentFolderId: string): Promise<string
   }
 };
 
+// Get all subfolders in a parent folder
+export const getAllSubfolders = async (parentFolderId: string): Promise<Array<{ id: string; name: string }>> => {
+  try {
+    const response = await (window as any).gapi.client.drive.files.list({
+      q: `'${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id, name)',
+      spaces: 'drive',
+      pageSize: 100,
+      orderBy: 'name',
+    });
+
+    return response.result.files || [];
+  } catch (error) {
+    console.error('Error getting subfolders:', error);
+    throw error;
+  }
+};
+
 // Main function to get all images from BANG LED BEP folder
 export const getScheduleFolderImages = async (): Promise<DriveImage[]> => {
   try {
@@ -338,6 +356,24 @@ export const getScheduleFolderImages = async (): Promise<DriveImage[]> => {
     return images;
   } catch (error) {
     console.error('Error getting BANG LED BEP folder images:', error);
+    throw error;
+  }
+};
+
+// Get images from any folder (used when user selects a folder)
+export const getImagesFromAnyFolder = async (folderId: string): Promise<DriveImage[]> => {
+  try {
+    const response = await (window as any).gapi.client.drive.files.list({
+      q: `'${folderId}' in parents and (mimeType contains 'image/') and trashed=false`,
+      fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)',
+      spaces: 'drive',
+      pageSize: 100,
+      orderBy: 'name',
+    });
+
+    return response.result.files || [];
+  } catch (error) {
+    console.error('Error getting images from folder:', error);
     throw error;
   }
 };

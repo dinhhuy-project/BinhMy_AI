@@ -9,6 +9,9 @@ import {
   getScheduleFolderImages,
   getImageAsBase64,
   getSessionInfo,
+  getImagesFromAnyFolder,
+  getAllSubfolders,
+  findFolderByName,
   type DriveImage
 } from '../services/driveService';
 import Spinner from './Spinner';
@@ -16,6 +19,11 @@ import Spinner from './Spinner';
 interface DriveImageLoaderProps {
   onImagesLoaded: (images: ImageFile[]) => void;
   currentImageCount: number;
+}
+
+interface FolderOption {
+  id: string;
+  name: string;
 }
 
 export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({ 
@@ -28,17 +36,14 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState<string>('');
   const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
+  const [availableFolders, setAvailableFolders] = useState<FolderOption[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string>('');
+  const [parentFolderId, setParentFolderId] = useState<string>('');
+  const [isLoadingFolders, setIsLoadingFolders] = useState(false);
 
   useEffect(() => {
     initializeGoogleServices();
   }, []);
-
-  // Load cached images on component mount
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadCachedImages();
-    }
-  }, [isAuthenticated]);
 
   const initializeGoogleServices = async () => {
     try {
@@ -56,13 +61,18 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
         const sessionInfo = await getSessionInfo();
         setSessionExpiresAt(sessionInfo.expiresAt);
         console.log('✓ Restored authentication from cache');
+        
+        // Load folder list automatically if already authenticated
+        setTimeout(async () => {
+          await loadFolderList();
+        }, 500);
+      } else {
+        setLoadingProgress('');
+        setIsLoading(false);
       }
-      
-      setLoadingProgress('');
     } catch (err) {
       console.error('Failed to initialize Google services:', err);
       setError('Không thể khởi tạo Google API. Vui lòng thử lại.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -79,11 +89,11 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
       const sessionInfo = await getSessionInfo();
       setSessionExpiresAt(sessionInfo.expiresAt);
       
-      setLoadingProgress('Đăng nhập thành công! ✓');
+      setLoadingProgress('Đăng nhập thành công! Đang tải danh sách thư mục...');
       
-      // Automatically load images after sign in
+      // Load list of folders after sign in
       setTimeout(async () => {
-        await loadImagesFromDrive();
+        await loadFolderList();
       }, 800);
     } catch (err) {
       console.error('Sign in failed:', err);
@@ -92,32 +102,51 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
     }
   };
 
-  const loadCachedImages = async () => {
+  const loadFolderList = async () => {
     try {
-      // Get list of images from drive first
-      const driveImages = await getScheduleFolderImages();
-      const imageFiles: ImageFile[] = [];
-
-      for (const driveImage of driveImages) {
-        // Try to get image from cache
-        const cachedImage = await getImageAsBase64(driveImage.id, driveImage.mimeType);
-        if (cachedImage) {
-          // Create File object from cached data
-          const blob = await fetch(cachedImage).then(r => r.blob());
-          const file = new File([blob], driveImage.name, { type: driveImage.mimeType });
-          imageFiles.push({
-            id: `drive-${driveImage.id}`,
-            file: file,
-            base64: cachedImage,
-          });
-        }
+      setIsLoadingFolders(true);
+      setError(null);
+      setLoadingProgress('Đang tìm thư mục "BANG LED BEP"...');
+      
+      // Find the BANG LED BEP folder
+      const bangLedBepFolderId = await findFolderByName('BANG LED BEP');
+      
+      if (!bangLedBepFolderId) {
+        setError('Không tìm thấy thư mục "BANG LED BEP" trong Google Drive của bạn');
+        setIsLoadingFolders(false);
+        setIsLoading(false);
+        return;
       }
-
-      if (imageFiles.length > 0) {
-        onImagesLoaded(imageFiles);
+      
+      setParentFolderId(bangLedBepFolderId);
+      
+      setLoadingProgress('Đang tải danh sách thư mục con...');
+      
+      // Get all subfolders
+      const subfolders = await getAllSubfolders(bangLedBepFolderId);
+      
+      if (subfolders.length === 0) {
+        setError('Không tìm thấy thư mục con nào trong "BANG LED BEP"');
+        setIsLoadingFolders(false);
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Failed to load cached images:', error);
+      
+      setAvailableFolders(subfolders);
+      // Select the first folder by default
+      setSelectedFolderId(subfolders[0].id);
+      
+      setLoadingProgress('');
+      setIsLoading(false);
+      setIsLoadingFolders(false);
+      
+      // Automatically load images from first folder
+      await loadImagesFromSelectedFolder(subfolders[0].id);
+    } catch (err) {
+      console.error('Failed to load folder list:', err);
+      setError(err instanceof Error ? err.message : 'Không thể tải danh sách thư mục');
+      setIsLoadingFolders(false);
+      setIsLoading(false);
     }
   };
 
@@ -125,19 +154,28 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
     signOut();
     setIsAuthenticated(false);
     setSessionExpiresAt(null);
+    setAvailableFolders([]);
+    setSelectedFolderId('');
+    setParentFolderId('');
     onImagesLoaded([]);
   };
 
-  const loadImagesFromDrive = async () => {
+  const loadImagesFromSelectedFolder = async (folderId?: string) => {
+    const folderToLoad = folderId || selectedFolderId;
+    if (!folderToLoad) {
+      setError('Vui lòng chọn một thư mục');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
-      setLoadingProgress('Đang tìm thư mục "BANG LED BEP"...');
+      setLoadingProgress('Đang tải danh sách ảnh từ thư mục...');
 
-      const driveImages = await getScheduleFolderImages();
+      const driveImages = await getImagesFromAnyFolder(folderToLoad);
       
       if (driveImages.length === 0) {
-        setError('Không tìm thấy ảnh nào trong thư mục "BANG LED BEP"');
+        setError('Không tìm thấy ảnh nào trong thư mục này');
         setIsLoading(false);
         return;
       }
@@ -192,6 +230,17 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
       setError(err instanceof Error ? err.message : 'Không thể tải ảnh từ Google Drive');
       setIsLoading(false);
     }
+  };
+
+  const handleFolderChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const folderId = event.target.value;
+    setSelectedFolderId(folderId);
+    onImagesLoaded([]); // Clear images when folder changes
+    
+    // Load images from the newly selected folder
+    setTimeout(async () => {
+      await loadImagesFromSelectedFolder(folderId);
+    }, 100);
   };
 
   if (!isInitialized) {
@@ -264,10 +313,31 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
             </p>
           </div>
 
+          {availableFolders.length > 0 && (
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-brand-primary-dark mb-2">
+                📂 Chọn thư mục:
+              </label>
+              <select
+                value={selectedFolderId}
+                onChange={handleFolderChange}
+                disabled={isLoading}
+                className="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary bg-white text-brand-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                <option value="">-- Chọn thư mục --</option>
+                {availableFolders.map(folder => (
+                  <option key={folder.id} value={folder.id}>
+                    {folder.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="text-center">
             <button
-              onClick={loadImagesFromDrive}
-              disabled={isLoading}
+              onClick={() => loadImagesFromSelectedFolder()}
+              disabled={isLoading || !selectedFolderId}
               className="w-full bg-brand-primary text-white font-bold py-4 px-6 rounded-lg active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-base lg:text-lg"
             >
               {isLoading ? (
@@ -276,7 +346,7 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
                   <span>Đang tải...</span>
                 </span>
               ) : (
-                `📁 Tải ảnh từ Drive`
+                `🔄 Tải lại ảnh`
               )}
             </button>
 

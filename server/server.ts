@@ -1,9 +1,12 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connectDB, disconnectDB, saveSearchResult, getAllSearchResults, searchResultsByQuery, getStatistics } from './mongoService.js';
 
 dotenv.config();
+
+import { connectDB, disconnectDB, saveSearchResult, getAllSearchResults, searchResultsByQuery, getStatistics } from './mongoService.js';
+import { initializeApiKeyMonitoring } from '../services/apiKeyMonitoring.js';
+import { getApiKeyHealthStatus, getApiKeyStatuses, switchToNextApiKey, resetApiKeyFailureCounts } from '../services/geminiService.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -158,6 +161,105 @@ app.get('/api/statistics', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/api-key/health
+ * Kiểm tra tình trạng API Keys
+ */
+app.get('/api/api-key/health', (req: Request, res: Response) => {
+  try {
+    const health = getApiKeyHealthStatus();
+    
+    res.json({
+      success: true,
+      data: health,
+    });
+  } catch (error) {
+    console.error('Error fetching API key health:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch API key health',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /api/api-key/status
+ * Lấy trạng thái chi tiết của tất cả API Keys
+ */
+app.get('/api/api-key/status', (req: Request, res: Response) => {
+  try {
+    const statuses = getApiKeyStatuses();
+    
+    res.json({
+      success: true,
+      data: statuses,
+    });
+  } catch (error) {
+    console.error('Error fetching API key statuses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch API key statuses',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /api/api-key/switch
+ * Chuyển sang API Key tiếp theo
+ */
+app.post('/api/api-key/switch', async (req: Request, res: Response) => {
+  try {
+    const switched = await switchToNextApiKey();
+    
+    if (switched) {
+      const health = getApiKeyHealthStatus();
+      res.json({
+        success: true,
+        message: 'Switched to next API key',
+        data: health,
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'No available API keys to switch to',
+      });
+    }
+  } catch (error) {
+    console.error('Error switching API key:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to switch API key',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /api/api-key/reset
+ * Reset lại failure counters của tất cả API Keys
+ */
+app.post('/api/api-key/reset', (req: Request, res: Response) => {
+  try {
+    resetApiKeyFailureCounts();
+    const health = getApiKeyHealthStatus();
+    
+    res.json({
+      success: true,
+      message: 'API key failure counters reset',
+      data: health,
+    });
+  } catch (error) {
+    console.error('Error resetting API key counters:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset API key counters',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 // 404 handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({
@@ -180,7 +282,22 @@ app.use((err: Error, req: Request, res: Response) => {
 // Start server
 const startServer = async () => {
   try {
-    await connectDB();
+    // Skip MongoDB for now to test API keys
+    // console.log('[Server] Attempting to connect to MongoDB...');
+    // try {
+    //   await connectDB();
+    //   console.log('[Server] Connected to MongoDB');
+    // } catch (dbError) {
+    //   console.warn('[Server] MongoDB connection failed, but continuing with API server:', dbError instanceof Error ? dbError.message : dbError);
+    // }
+    
+    // Start monitoring API keys
+    const monitoringHandle = initializeApiKeyMonitoring({
+      enableMonitoring: true,
+      monitoringIntervalMinutes: 10,
+      enableAutoReset: true,
+      autoResetIntervalMinutes: 60,
+    });
     
     app.listen(PORT, () => {
       console.log(`\n🚀 Server is running on http://localhost:${PORT}`);
@@ -189,19 +306,27 @@ const startServer = async () => {
       console.log(`   - POST /api/search-results            (Save search result)`);
       console.log(`   - GET  /api/search-results            (Get all results)`);
       console.log(`   - GET  /api/search-results/search     (Search by query)`);
-      console.log(`   - GET  /api/statistics                (Get statistics)\n`);
+      console.log(`   - GET  /api/statistics                (Get statistics)`);
+      console.log(`\n🔑 API Key Management:`);
+      console.log(`   - GET  /api/api-key/health            (Check API key health)`);
+      console.log(`   - GET  /api/api-key/status            (Get all API key statuses)`);
+      console.log(`   - POST /api/api-key/switch            (Switch to next API key)`);
+      console.log(`   - POST /api/api-key/reset             (Reset failure counters)\n`);
+    });
+    
+    // Handle graceful shutdown
+    process.on('SIGINT', async () => {
+      console.log('\n\n🛑 Shutting down gracefully...');
+      if (monitoringHandle) {
+        monitoringHandle.stopMonitoring();
+      }
+      await disconnectDB();
+      process.exit(0);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
 };
-
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n\n🛑 Shutting down gracefully...');
-  await disconnectDB();
-  process.exit(0);
-});
 
 startServer();
