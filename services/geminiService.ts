@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { ImageFile } from '../types';
 import apiKeyManager from './apiKeyManager.js';
+import { imageProcessingCache } from './imageProcessingCache.js';
 
 // Initialize GoogleGenAI client with API Key Manager
 let ai: GoogleGenAI | null = null;
@@ -117,12 +118,58 @@ export const rateBatchImageMatch = async (images: ImageFile[], query: string, re
         // Ensure AI client is initialized
         ensureAiInitialized();
         
-        const results = [];
+        // Check if cache is still valid for this query
+        const cacheValid = imageProcessingCache.isCacheValidForQuery(query);
+        
+        // Start batch processing if not already started OR if query changed
+        const activeBatch = imageProcessingCache.getActiveBatch();
+        if (!activeBatch || !cacheValid) {
+          if (activeBatch && !cacheValid) {
+            console.log(`[GeminiService] Query changed, starting new batch session`);
+          }
+          imageProcessingCache.startBatch(query, images.length);
+        }
+        
+        // Check which images have already been processed (only if cache is valid)
+        let results: Array<{ score: number; reason: string; }> = [];
+        let unprocessedImages = images;
+        
+        if (cacheValid) {
+          unprocessedImages = images.filter(img => {
+            return !imageProcessingCache.isProcessed(img.id);
+          });
+          
+          // Return cached results for already processed images
+          results = images.map(img => {
+            const cached = imageProcessingCache.getResult(img.id);
+            if (cached) {
+              console.log(`[GeminiService] Using cached result for ${img.id}`);
+              return { score: cached.score, reason: cached.reason };
+            }
+            return null;
+          }).filter(r => r !== null) as Array<{ score: number; reason: string; }>;
+        }
+        
+        // If all images are cached, return early
+        if (unprocessedImages.length === 0 && cacheValid) {
+          if (imageProcessingCache.isBatchComplete()) {
+            imageProcessingCache.endBatch();
+          }
+          return results;
+        }
+        
+        if (cacheValid && results.length > 0) {
+          console.log(`[GeminiService] Processing ${unprocessedImages.length} new images (${results.length} from cache)`);
+        } else if (!cacheValid) {
+          console.log(`[GeminiService] Processing ${images.length} images (cache invalidated due to query change)`);
+        }
+        
+        const newResults = [];
         const batchSize = 3;
         
         // Process batch by batch instead of map to catch quota errors early
-        for (let i = 0; i < images.length; i += batchSize) {
-            const batchImages = images.slice(i, i + batchSize);
+        for (let i = 0; i < unprocessedImages.length; i += batchSize) {
+            const batchImages = unprocessedImages.slice(i, i + batchSize);
             
             const batchPromises = batchImages.map(async (image) => {
                 const imagePart = {
@@ -149,6 +196,8 @@ export const rateBatchImageMatch = async (images: ImageFile[], query: string, re
                 const result = JSON.parse(jsonString);
 
                 if (typeof result.score === 'number' && typeof result.reason === 'string') {
+                    // Cache the result
+                    imageProcessingCache.addResult(image.id, result.score, result.reason, apiKeyManager.getCurrentKeyIndex());
                     return { score: result.score, reason: result.reason };
                 }
                 
@@ -157,10 +206,16 @@ export const rateBatchImageMatch = async (images: ImageFile[], query: string, re
             
             // Wait for batch to complete - let errors propagate
             const batchResults = await Promise.all(batchPromises);
-            results.push(...batchResults);
+            newResults.push(...batchResults);
         }
 
-        return results;
+        // Check if batch is now complete
+        if (imageProcessingCache.isBatchComplete()) {
+          imageProcessingCache.endBatch();
+        }
+        
+        // Merge cached results with new results
+        return results.concat(newResults);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[GeminiService] Error in batch processing (Key #${apiKeyManager.getCurrentKeyIndex()}):`, errorMessage);
@@ -178,7 +233,7 @@ export const rateBatchImageMatch = async (images: ImageFile[], query: string, re
             
             // Try to switch to next key
             if (await switchApiKey()) {
-                // Retry with next API key
+                // Retry with next API key - will continue with unprocessed images only
                 console.log(`[GeminiService] Retrying with API Key #${apiKeyManager.getCurrentKeyIndex()}...`);
                 return rateBatchImageMatch(images, query, retryCount + 1);
             } else {
@@ -228,4 +283,18 @@ export const switchToNextApiKey = async (): Promise<boolean> => {
  */
 export const resetApiKeyFailureCounts = (): void => {
     apiKeyManager.resetFailureCounts();
+};
+
+/**
+ * Get image processing cache statistics
+ */
+export const getProcessingCacheStats = () => {
+    return imageProcessingCache.getStats();
+};
+
+/**
+ * Clear image processing cache
+ */
+export const clearProcessingCache = (): void => {
+    imageProcessingCache.clear();
 };
