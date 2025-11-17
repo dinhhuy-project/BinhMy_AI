@@ -30,18 +30,25 @@ let tokenClient: any;
 let tokenRefreshTimer: NodeJS.Timeout | null = null;
 
 // Setup token refresh timer
-const setupTokenRefreshTimer = () => {
+const setupTokenRefreshTimer = (expiresIn: number = 3600) => {
   // Refresh token 5 minutes before expiry
   if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
   
+  const refreshTime = Math.max((expiresIn - 300) * 1000, 60000); // At least 1 minute before expiry
   tokenRefreshTimer = setTimeout(async () => {
     try {
-      console.log('Token expiring soon, requesting new token...');
-      await getAccessToken();
+      console.log('Token expiring soon, refreshing...');
+      const authData = await cacheService.getAuthData();
+      if (authData?.refreshToken) {
+        await refreshAccessTokenWithRefreshToken(authData.refreshToken);
+      } else {
+        // Fallback to requesting new token
+        await getAccessToken();
+      }
     } catch (error) {
       console.error('Failed to refresh token:', error);
     }
-  }, 55 * 60 * 1000); // 55 minutes (out of 60 minute default expiry)
+  }, refreshTime);
 };
 
 export const initGoogleAPI = async (): Promise<void> => {
@@ -59,15 +66,25 @@ export const initGoogleAPI = async (): Promise<void> => {
       
       // Try to restore auth session from cache
       try {
-        const isValid = await cacheService.isAuthDataValid();
-        if (isValid) {
-          const authData = await cacheService.getAuthData();
-          if (authData && authData.token) {
-            // Set the access token
+        const authData = await cacheService.getAuthData();
+        if (authData && authData.token) {
+          if (authData.expiresAt > Date.now()) {
+            // Token still valid
             (window as any).gapi.client.setToken({ access_token: authData.token });
             console.log('✓ Restored authentication from cache (offline login)');
             gapiInited = true;
             setupTokenRefreshTimer();
+          } else if (authData.refreshToken) {
+            // Token expired but we have refresh token - auto refresh
+            try {
+              console.log('Token expired, auto-refreshing with refresh token...');
+              const newToken = await refreshAccessTokenWithRefreshToken(authData.refreshToken);
+              (window as any).gapi.client.setToken({ access_token: newToken });
+              console.log('✓ Auto-refreshed and restored authentication');
+              gapiInited = true;
+            } catch (error) {
+              console.warn('Auto-refresh failed:', error);
+            }
           }
         }
       } catch (error) {
@@ -118,6 +135,44 @@ export const initGoogleIdentityServices = async (): Promise<void> => {
   });
 };
 
+// Refresh access token using refresh token (permanent session)
+const refreshAccessTokenWithRefreshToken = async (refreshToken: string): Promise<string> => {
+  const credentials = await getCredentials();
+  
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      client_id: credentials.client_id,
+      client_secret: credentials.client_secret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }).toString(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to refresh token');
+  }
+
+  const data = await response.json();
+  const accessToken = data.access_token;
+  const expiresIn = data.expires_in || 3600;
+
+  // Update token in gapi
+  (window as any).gapi.client.setToken({ access_token: accessToken });
+
+  // Save new access token to cache
+  await cacheService.saveAuthData(accessToken, expiresIn, refreshToken);
+  console.log('✓ Token refreshed successfully (session extended)');
+
+  // Setup next refresh
+  setupTokenRefreshTimer(expiresIn);
+
+  return accessToken;
+};
+
 // Request access token
 export const getAccessToken = (): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -126,13 +181,14 @@ export const getAccessToken = (): Promise<string> => {
         if (response.error !== undefined) {
           reject(response);
         } else {
-          // Save auth data to cache - this enables persistent login
+          // Save auth data to cache with refresh token - this enables permanent login
           const expiresIn = response.expires_in || 3600; // Default to 1 hour
-          await cacheService.saveAuthData(response.access_token, expiresIn);
-          console.log('✓ Authentication saved (will persist for future sessions)');
+          const refreshToken = response.refresh_token; // Only available on first consent
+          await cacheService.saveAuthData(response.access_token, expiresIn, refreshToken);
+          console.log('✓ Authentication saved (permanent session enabled)');
           
           // Setup refresh timer for automatic token renewal
-          setupTokenRefreshTimer();
+          setupTokenRefreshTimer(expiresIn);
           
           resolve(response.access_token);
         }

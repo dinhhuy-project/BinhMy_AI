@@ -13,6 +13,7 @@ interface CachedImage {
 interface AuthData {
   id: string;
   token: string;
+  refreshToken?: string; // Optional refresh token for permanent session
   expiresAt: number;
 }
 
@@ -81,7 +82,7 @@ class CacheService {
     });
   }
 
-  async saveAuthData(token: string, expiresIn: number): Promise<void> {
+  async saveAuthData(token: string, expiresIn: number, refreshToken?: string): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     const transaction = this.db.transaction(AUTH_STORE, 'readwrite');
@@ -90,6 +91,7 @@ class CacheService {
     const authData: AuthData = {
       id: 'google-drive',
       token,
+      refreshToken,
       expiresAt: Date.now() + expiresIn * 1000
     };
 
