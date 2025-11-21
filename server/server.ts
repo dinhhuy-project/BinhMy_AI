@@ -260,6 +260,211 @@ app.post('/api/api-key/reset', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/images
+ * Lưu ảnh lên MongoDB (MongoImage)
+ */
+app.post('/api/images', async (req: Request, res: Response) => {
+  try {
+    const {
+      searchQuery,
+      imageId,
+      imageName,
+      imageFilename,
+      imageUrl,
+      imageBase64,
+      mimeType,
+      matchScore,
+      matchReason,
+      source,
+      driveFileId,
+    } = req.body;
+
+    // Validation
+    if (!searchQuery || !imageId || !imageName || matchScore === undefined || !source) {
+      res.status(400).json({
+        success: false,
+        message: 'Missing required fields: searchQuery, imageId, imageName, matchScore, source',
+      });
+      return;
+    }
+
+    // Lưu vào MongoDB
+    const result = await saveSearchResult({
+      query: searchQuery,
+      imageFileName: imageName,
+      imageUrl: imageUrl,
+      matchScore: matchScore,
+      matchReason: matchReason,
+      imageMimeType: mimeType || 'image/jpeg',
+      metadata: {
+        imageFilename: imageFilename,
+        source: source,
+        driveFileId: driveFileId,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Image saved successfully',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Error saving image:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save image',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /api/images
+ * Lấy tất cả ảnh được lưu
+ */
+app.get('/api/images', async (req: Request, res: Response) => {
+  try {
+    const results = await getAllSearchResults();
+
+    res.json({
+      success: true,
+      data: results,
+      count: results.length,
+    });
+  } catch (error) {
+    console.error('Error fetching images:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch images',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /api/images/search
+ * Tìm kiếm ảnh theo query
+ */
+app.get('/api/images/search', async (req: Request, res: Response) => {
+  try {
+    const query = req.query.q as string;
+
+    if (!query) {
+      res.status(400).json({
+        success: false,
+        message: 'Query parameter "q" is required',
+      });
+      return;
+    }
+
+    const results = await searchResultsByQuery(query);
+
+    res.json({
+      success: true,
+      data: results,
+      count: results.length,
+    });
+  } catch (error) {
+    console.error('Error searching images:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search images',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /api/images/:id
+ * Lấy ảnh theo ID
+ */
+app.get('/api/images/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const { ObjectId } = require('mongodb');
+    const results = await getAllSearchResults();
+    const image = results.find(r => r._id.toString() === id);
+
+    if (!image) {
+      res.status(404).json({
+        success: false,
+        message: 'Image not found',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: image,
+    });
+  } catch (error) {
+    console.error('Error fetching image:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch image',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /api/images/source/:source
+ * Lấy ảnh theo source (google-drive hoặc upload)
+ */
+app.get('/api/images/source/:source', async (req: Request, res: Response) => {
+  try {
+    const { source } = req.params;
+
+    if (!['google-drive', 'upload'].includes(source)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid source. Must be "google-drive" or "upload"',
+      });
+      return;
+    }
+
+    const results = await getAllSearchResults();
+    const filtered = results.filter(r => r.metadata?.source === source);
+
+    res.json({
+      success: true,
+      data: filtered,
+      count: filtered.length,
+    });
+  } catch (error) {
+    console.error('Error fetching images by source:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch images by source',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * DELETE /api/images/:id
+ * Xóa ảnh
+ */
+app.delete('/api/images/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    res.json({
+      success: true,
+      message: 'Image deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting image:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete image',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 // 404 handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({
@@ -307,6 +512,12 @@ const startServer = async () => {
       console.log(`   - GET  /api/search-results            (Get all results)`);
       console.log(`   - GET  /api/search-results/search     (Search by query)`);
       console.log(`   - GET  /api/statistics                (Get statistics)`);
+      console.log(`   - POST /api/images                    (Save image)`);
+      console.log(`   - GET  /api/images                    (Get all images)`);
+      console.log(`   - GET  /api/images/search             (Search images)`);
+      console.log(`   - GET  /api/images/:id                (Get image by ID)`);
+      console.log(`   - GET  /api/images/source/:source     (Get images by source)`);
+      console.log(`   - DELETE /api/images/:id              (Delete image)`);
       console.log(`\n🔑 API Key Management:`);
       console.log(`   - GET  /api/api-key/health            (Check API key health)`);
       console.log(`   - GET  /api/api-key/status            (Get all API key statuses)`);

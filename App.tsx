@@ -75,6 +75,7 @@ function App() {
             searchQuery: currentQuery,
             imageId: topMatch.image.id,
             imageName: topMatch.image.file.name,
+            imageFilename: topMatch.image.filename || topMatch.image.file.name, // Sử dụng filename đã lưu
             imageBase64: topMatch.image.base64,
             mimeType: topMatch.image.file.type,
             matchScore: topMatch.score,

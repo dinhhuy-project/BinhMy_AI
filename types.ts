@@ -4,6 +4,7 @@ export interface ImageFile {
   id: string;
   file: File;
   base64: string;
+  filename?: string; // Tên file ảnh để tăng khả năng tìm kiếm
 }
 
 export interface MatchResult {
@@ -20,34 +21,7 @@ export interface MongoImage {
   searchQuery: string;
   imageId: string;
   imageName: string;
-  imageUrl?: string;
-  imageBase64?: string;
-  mimeType: string;
-  matchScore: number;
-  matchReason: string;
-  source: 'google-drive' | 'upload';
-  driveFileId?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-/**
- * Dữ liệu kết quả tìm kiếm được lưu lên MongoDB (Legacy - dùng MongoImage thay thế)
- */
-export interface MatchResult {
-  image: ImageFile;
-  score: number;
-  reason: string;
-}
-
-/**
- * MongoDB Image Model - Lưu dữ liệu ảnh tìm kiếm được
- */
-export interface MongoImage {
-  _id?: string;
-  searchQuery: string;
-  imageId: string;
-  imageName: string;
+  imageFilename?: string; // Tên file gốc của ảnh để tăng khả năng tìm kiếm
   imageUrl?: string;
   imageBase64?: string;
   mimeType: string;

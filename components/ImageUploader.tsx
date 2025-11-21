@@ -24,6 +24,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ images, onImagesCh
               id: `${file.name}-${Date.now()}`,
               file,
               base64: reader.result as string,
+              filename: file.name, // Thêm tên file để AI có thể phân tích
             });
           };
           reader.readAsDataURL(file);

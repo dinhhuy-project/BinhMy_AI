@@ -14,6 +14,7 @@ import {
   findFolderByName,
   type DriveImage
 } from '../services/driveService';
+import { cacheService } from '../services/cacheService';
 import Spinner from './Spinner';
 
 interface DriveImageLoaderProps {
@@ -40,6 +41,7 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
   const [selectedFolderId, setSelectedFolderId] = useState<string>('');
   const [parentFolderId, setParentFolderId] = useState<string>('');
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
+  const [cachedGalleryFolderName, setCachedGalleryFolderName] = useState<string | null>(null);
 
   useEffect(() => {
     initializeGoogleServices();
@@ -52,6 +54,33 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
       await initGoogleAPI();
       await initGoogleIdentityServices();
       setIsInitialized(true);
+      
+      // Try to load cached gallery first
+      try {
+        const cachedGallery = await cacheService.getGallery();
+        if (cachedGallery && cachedGallery.images.length > 0) {
+          setLoadingProgress(`Đang tải kho ảnh cached từ thư mục "${cachedGallery.folderName}"...`);
+          
+          // Convert cached gallery to ImageFile format
+          const imageFiles: ImageFile[] = cachedGallery.images.map(img => ({
+            id: img.id,
+            file: new File([],  img.name, { type: img.mimeType }),
+            base64: img.base64Data,
+            filename: img.name, // Thêm tên file từ cache
+          }));
+          
+          onImagesLoaded(imageFiles);
+          setCachedGalleryFolderName(cachedGallery.folderName);
+          setLoadingProgress(`Đã khôi phục ${imageFiles.length} ảnh từ kho lưu trữ`);
+          
+          setTimeout(() => {
+            setLoadingProgress('');
+            setIsLoading(false);
+          }, 2000);
+        }
+      } catch (cacheError) {
+        console.warn('Could not load cached gallery:', cacheError);
+      }
       
       // Check for existing session
       const authenticated = isSignedIn();
@@ -67,8 +96,10 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
           await loadFolderList();
         }, 500);
       } else {
-        setLoadingProgress('');
-        setIsLoading(false);
+        if (!cachedGallery || cachedGallery.images.length === 0) {
+          setLoadingProgress('');
+          setIsLoading(false);
+        }
       }
     } catch (err) {
       console.error('Failed to initialize Google services:', err);
@@ -184,6 +215,7 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
 
       // Convert Drive images to ImageFile format
       const imageFiles: ImageFile[] = [];
+      const imagesToCache: Array<{ id: string; name: string; mimeType: string; base64Data: string }> = [];
       
       const totalImages = driveImages.length;
       let loadedImages = 0;
@@ -201,6 +233,14 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
             id: `drive-${driveImage.id}`,
             file: file,
             base64: base64,
+            filename: driveImage.name, // Thêm tên file từ Google Drive
+          });
+          
+          imagesToCache.push({
+            id: `drive-${driveImage.id}`,
+            name: driveImage.name,
+            mimeType: driveImage.mimeType,
+            base64Data: base64
           });
 
           loadedImages++;
@@ -216,6 +256,18 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
 
       if (imageFiles.length > 0) {
         onImagesLoaded(imageFiles);
+        
+        // Get the folder name to save with gallery
+        const folderName = availableFolders.find(f => f.id === folderToLoad)?.name || 'Unknown';
+        
+        // Save gallery to cache for offline access
+        try {
+          await cacheService.saveGallery(folderToLoad, folderName, imagesToCache);
+          setCachedGalleryFolderName(folderName);
+        } catch (cacheError) {
+          console.error('Failed to save gallery to cache:', cacheError);
+        }
+        
         setLoadingProgress(`Đã tải thành công ${imageFiles.length} ảnh`);
         setTimeout(() => {
           setLoadingProgress('');
@@ -311,6 +363,12 @@ export const DriveImageLoader: React.FC<DriveImageLoaderProps> = ({
             <p className="text-xs text-brand-muted">
               💾 Đã lưu
             </p>
+
+            {cachedGalleryFolderName && (
+              <div className="mt-2 text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded">
+                ✅ Kho ảnh cached: <strong>{cachedGalleryFolderName}</strong> (có thể tìm kiếm offline)
+              </div>
+            )}
           </div>
 
           {availableFolders.length > 0 && (

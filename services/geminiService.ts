@@ -179,8 +179,17 @@ export const rateBatchImageMatch = async (images: ImageFile[], query: string, re
                     }
                 };
 
+                // Tạo prompt đầy đủ với tên file và mô tả
+                const filename = image.filename || image.file.name || 'unknown';
                 const textPart = {
-                    text: `Phân tích hình ảnh và văn bản. Hình ảnh khớp với mô tả: "${query}" ở mức độ nào? Cung cấp điểm số và một lý do ngắn gọn bằng tiếng Việt.`,
+                    text: `Phân tích hình ảnh có tên file: "${filename}" và kiểm tra xem nó khớp với mô tả: "${query}" ở mức độ nào? 
+
+Hãy xem xét:
+1. Tên file của ảnh - nó có chứa từ khóa liên quan đến mô tả không?
+2. Nội dung trực quan của ảnh - nó có phù hợp với yêu cầu không?
+3. Kết hợp cả hai yếu tố trên để đưa ra điểm số chính xác nhất.
+
+Cung cấp điểm số (0-100) và một lý do ngắn gọn (một câu) bằng tiếng Việt.`,
                 };
 
                 const response = await ai!.models.generateContent({
